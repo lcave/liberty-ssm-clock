@@ -56,13 +56,20 @@ req_struct intake_temp = {String("Intake Temperature"), String("C"), coolant_req
 uint8_t ECUResponseBuffer[2] = {0, 0};
 uint8_t param_index = 0;
 
+const int display_btn = 52;
+
 void setup()
 {
+  // fill requests array
   requests[0] = pressure;
   requests[1] = afr;
   requests[2] = coolant_temp;
   requests[3] = intake_temp;
 
+  // Initialize control buttons
+  pinMode(display_btn, INPUT_PULLUP);
+
+  // Initialize serial ports
   Serial.begin(9600);
   Serial3.begin(4800);
   // TODO display startup logo
@@ -71,7 +78,7 @@ void setup()
 
 void loop()
 {
-  if (serialCallSSM(requests[param_index].request))
+  if (serialCallSSM(requests[param_index]))
   {
     double value = 0;
     switch (param_index)
@@ -186,25 +193,25 @@ bool readSSM()
 }
 
 //writes data over the software serial port
-void writeSSM(byte *dataBuffer)
+void writeSSM(req_struct request)
 {
   Serial.print(F("Sending packet: [ "));
-  for (uint8_t i = 0; i < sizeof(dataBuffer); i++)
+  for (uint8_t i = 0; i < request.req_length; i++)
   {
-    Serial3.write(dataBuffer[i]);
-    Serial.print(dataBuffer[i]);
+    Serial3.write(request.request[i]);
+    Serial.print(request.request[i]);
     Serial.print(F(" "));
   }
   Serial.println(F("]"));
 }
 
-bool serialCallSSM(byte *sendDataBuffer)
+bool serialCallSSM(req_struct request)
 {
   bool success = false;
   int attempts = 0;
   while (attempts < 10 && !success)
   {
-    writeSSM(sendDataBuffer);
+    writeSSM(request);
     success = readSSM();
     attempts++;
   }
