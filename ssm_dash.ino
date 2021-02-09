@@ -55,8 +55,14 @@ req_struct intake_temp = {String("Intake Temperature"), String("C"), coolant_req
 
 uint8_t ECUResponseBuffer[2] = {0, 0};
 uint8_t param_index = 0;
+// Update when new requests are added
+const int num_requests = 4;
 
-const int display_btn = 52;
+const int display_btn = 53;
+const int bright_btn = 51;
+const int set_btn = 49;
+const int plus_btn = 47;
+const int minus_btn = 45;
 
 void setup()
 {
@@ -68,6 +74,10 @@ void setup()
 
   // Initialize control buttons
   pinMode(display_btn, INPUT_PULLUP);
+  pinMode(bright_btn, INPUT_PULLUP);
+  pinMode(set_btn, INPUT_PULLUP);
+  pinMode(plus_btn, INPUT_PULLUP);
+  pinMode(minus_btn, INPUT_PULLUP);
 
   // Initialize serial ports
   Serial.begin(9600);
@@ -78,35 +88,78 @@ void setup()
 
 void loop()
 {
+  switchHandler();
+
   if (serialCallSSM(requests[param_index]))
   {
     double value = 0;
     switch (param_index)
     {
     case 0:
-      // Manifold Pressure Calculation
-      //the pressure calc looks like: x*0.1333224 for units of kPa absolute, or (x-760)*0.001333224 for units of Bar relative to sea level
-      //uint16_t combBytes = 256 * ECUResponseBuffer[0] + ECUResponseBuffer[1]; //we must combine the ECU response bytes into one 16-bit word - the response bytes are big endian
-      //value = combBytes * 0.1333224;
+      // TODO Manifold Pressure Calculation
       break;
     case 1:
-      // AFR Caclculation TODO
+      // TODO AFR Caclculation
       break;
     case 2:
-      // Coolant temp calculation TODO
+      // TODO Coolant temp calculation
       break;
     case 3:
-      // Intake temp calculation TODO
+      // TODO Intake temp calculation
       break;
     }
     Serial.println(requests[param_index].title);
     Serial.println(value);
-    // Print to screen TODO
+    // TODO Print to screen
+  }
+}
+
+void switchHandler()
+{
+  int display_val = digitalRead(display_btn);
+  int bright_val = digitalRead(bright_btn);
+  int set_val = digitalRead(set_btn);
+  int plus_val = digitalRead(plus_btn);
+  int minus_val = digitalRead(minus_btn);
+
+  if (display_val == LOW)
+  {
+    Serial.println(F("DISPLAY"));
+    if (param_index == (num_requests - 1))
+    {
+      param_index = 0;
+    }
+    else
+    {
+      param_index++;
+    }
+  }
+
+  if (bright_val == LOW)
+  {
+    Serial.println(F("BRIGHT"));
+    // TODO send brightness signal
+  }
+
+  if (set_val == LOW)
+  {
+    Serial.println(F("UPDATED"));
+  }
+
+  if (plus_val == LOW)
+  {
+    Serial.println(F("+"));
+  }
+
+  if (minus_val == LOW)
+  {
+    Serial.println(F("-"));
   }
 }
 
 bool readSSM()
 {
+  switchHandler();
   uint16_t timeout = 100;
   uint32_t timerstart = millis();
   boolean notFinished = true;
@@ -123,7 +176,7 @@ bool readSSM()
     if (Serial3.available())
     {
       uint8_t data = Serial3.read();
-      Serial.print(data);
+      // Serial.print(data);
 
       if (packetIndex == 0 && data == 128)
       {
@@ -195,6 +248,7 @@ bool readSSM()
 //writes data over the software serial port
 void writeSSM(req_struct request)
 {
+  switchHandler();
   Serial.print(F("Sending packet: [ "));
   for (uint8_t i = 0; i < request.req_length; i++)
   {
@@ -202,7 +256,8 @@ void writeSSM(req_struct request)
     Serial.print(request.request[i]);
     Serial.print(F(" "));
   }
-  Serial.println(F("]"));
+  Serial.print(F("] "));
+  Serial.println(request.title);
 }
 
 bool serialCallSSM(req_struct request)
@@ -211,6 +266,7 @@ bool serialCallSSM(req_struct request)
   int attempts = 0;
   while (attempts < 10 && !success)
   {
+    switchHandler();
     writeSSM(request);
     success = readSSM();
     attempts++;
