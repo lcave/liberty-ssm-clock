@@ -55,6 +55,7 @@ req_struct intake_temp = {String("Intake Temperature"), String("C"), coolant_req
 
 uint8_t ECUResponseBuffer[2] = {0, 0};
 uint8_t param_index = 0;
+
 // Update when new requests are added
 const int num_requests = 4;
 
@@ -114,7 +115,7 @@ void loop()
   }
 }
 
-void switchHandler()
+boolean switchHandler()
 {
   int display_val = digitalRead(display_btn);
   int bright_val = digitalRead(bright_btn);
@@ -133,6 +134,8 @@ void switchHandler()
     {
       param_index++;
     }
+    delay(500);
+    return true;
   }
 
   if (bright_val == LOW)
@@ -155,11 +158,14 @@ void switchHandler()
   {
     Serial.println(F("-"));
   }
+  return false;
 }
 
 bool readSSM()
 {
-  switchHandler();
+  if (switchHandler()){
+    return false;
+  }
   uint16_t timeout = 100;
   uint32_t timerstart = millis();
   boolean notFinished = true;
@@ -248,7 +254,9 @@ bool readSSM()
 //writes data over the software serial port
 void writeSSM(req_struct request)
 {
-  switchHandler();
+  if (switchHandler()){
+    return;
+  }
   Serial.print(F("Sending packet: [ "));
   for (uint8_t i = 0; i < request.req_length; i++)
   {
@@ -266,10 +274,15 @@ bool serialCallSSM(req_struct request)
   int attempts = 0;
   while (attempts < 10 && !success)
   {
-    switchHandler();
+    if (switchHandler()){
+      break;
+    }
     writeSSM(request);
     success = readSSM();
     attempts++;
+    if (switchHandler()){
+      break;
+    }
   }
   return success;
 }
